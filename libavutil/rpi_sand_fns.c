@@ -32,6 +32,7 @@ Authors: John Cox
 #include <stdatomic.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/resource.h>
 #include <unistd.h>
 #include "rpi_sand_fns.h"
 #include "avassert.h"
@@ -495,8 +496,21 @@ static void sand_band(const SandBandJob * const j)
     }
 }
 
+// Copy helpers run at normal priority instead of the decoder thread's (-10),
+// which they inherit. When every core is copying a 4K picture, audio and the
+// UI must still get the CPU first: on the Pi 4 with a 2160p HDR10 episode the
+// helpers at -10 caused 21 HDMI audio underruns in 2 minutes, at 0 none, with
+// no extra video drops. On Linux this call only affects the calling thread.
+// No getpriority() check first: the codec2 service's seccomp policy kills the
+// process on getpriority (v10 did that); setpriority is allowed.
+static void sand_helper_lower_priority(void)
+{
+    setpriority(PRIO_PROCESS, 0, 0);
+}
+
 static void *sand_band_thread(void *job)
 {
+    sand_helper_lower_priority();
     sand_band(job);
     return NULL;
 }
@@ -532,6 +546,7 @@ static void *sand_pool_worker(void *arg)
     const unsigned int slot = (unsigned int)(uintptr_t)arg;
     unsigned int seen = 0;
 
+    sand_helper_lower_priority();
     pthread_mutex_lock(&p->lock);
     for (;;) {
         const SandBandJob *job;
