@@ -55,7 +55,10 @@ void FUNC(av_rpi_sand_to_planar_y)(uint8_t * dst, const unsigned int dst_stride,
     const unsigned int mask = stride1 - 1;
 
 #if PW == 1 && HAVE_SAND_ASM
-    if (_x == 0) {
+    // The NEON routine counts whole 128-byte columns from dst_stride and adds
+    // no row gap, so it is only right when the stride is the width or the
+    // width rounded up to a column; other strides take the C path.
+    if (_x == 0 && (dst_stride == _w || dst_stride == ((_w + 127) & ~127u))) {
         ff_rpi_sand8_lines_to_planar_y8(dst, dst_stride,
                                      src, stride1, stride2, _x, y, _w, h);
         return;
@@ -107,7 +110,8 @@ void FUNC(av_rpi_sand_to_planar_c)(uint8_t * dst_u, const unsigned int dst_strid
     const unsigned int mask = stride1 - 1;
 
 #if PW == 1 && HAVE_SAND_ASM
-    if (_x == 0) {
+    // The NEON routine applies dst_stride_u's row gap to both planes.
+    if (_x == 0 && dst_stride_u == dst_stride_v) {
         ff_rpi_sand8_lines_to_planar_c8(dst_u, dst_stride_u, dst_v, dst_stride_v,
                                      src, stride1, stride2, _x, y, _w, h);
         return;

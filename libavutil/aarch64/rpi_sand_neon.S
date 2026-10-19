@@ -616,10 +616,11 @@ function ff_rpi_sand30_lines_to_planar_y8, export=1
                 blt             1f
                 st3             {v16.16b, v17.16b, v18.16b}, [x0], #48
                 beq             11b
-                mov             v16.16b, v22.16b
-                mov             v17.16b, v23.16b
+                // Second 48 pixels are in v19-v21 (v22-v24 are USAND8 scratch)
+                mov             v16.16b, v19.16b
+                mov             v17.16b, v20.16b
                 sub             w5,  w5,  #48
-                mov             v18.16b, v24.16b
+                mov             v18.16b, v21.16b
 1:
                 cmp             w5,  #24-96
                 blt             1f
