@@ -737,6 +737,11 @@ static int v4l2_request_hevc_start_frame(AVCodecContext *avctx,
     {
         if ((rd->qe_dst = mediabufs_dst_qent_alloc(ctx->mbufs, ctx->dbufs)) == NULL) {
             av_log(avctx, AV_LOG_ERROR, "%s: Failed to get dst buffer\n", __func__);
+            // hevcdec clears cur_frame on this failure before abort_frame
+            // runs, so abort_frame can't remove the entry; without this the
+            // next frame (another frame thread) waits in decode_q_wait forever
+            // and closing the decoder deadlocks.
+            decode_q_remove(&ctx->decode_q, &rd->decode_ent);
             return AVERROR(ENOMEM);
         }
     }
